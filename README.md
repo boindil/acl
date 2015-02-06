@@ -23,6 +23,19 @@ following to your `composer.json` file:
 
 And run `php composer.phar update`
 
+In your `config\bootstrap.php`:
+```php
+Plugin::load('Acl', ['bootstrap' => true]);
+```
+
+## Creating tables
+
+To create ACL related tables, run the following `Migrations` command:
+
+```
+bin/cake Migrations.migrations migrate -p Acl
+```
+
 ## Running tests
 
 Assuming you have PHPUnit installed system wide using one of the methods stated

@@ -17,6 +17,7 @@ use Cake\Core\Configure;
 use Cake\Core\Exception;
 use Cake\ORM\Entity;
 use Cake\ORM\Table;
+use Cake\ORM\TableRegistry;
 
 /**
  * ACL Nodes
@@ -42,7 +43,7 @@ class AclNodesTable extends Table
      * @return array Node found in database
      * @throws \Cake\Core\Exception\Exception when binding to a model that doesn't exist.
      */
-    public function node($ref = null, $error = true)
+    public function node($ref = null)
     {
         $db = $this->connection();
         $type = $this->alias();
@@ -66,7 +67,7 @@ class AclNodesTable extends Table
                         'table' => $table,
                         'alias' => "{$type}0",
                         'type' => 'INNER',
-                        'conditions' => array("{$type}0.alias" => $start)
+                        'conditions' => ["{$type}0.alias" => $start]
                 ]],
                 'order' => "{$type}.lft" . ' DESC'
             ];
@@ -105,23 +106,21 @@ class AclNodesTable extends Table
                 return false;
             }
         } elseif (is_object($ref) && $ref instanceof Entity) {
-            $ref = array('model' => $ref->source(), 'foreign_key' => $ref->id);
+            $ref = ['model' => $ref->source(), 'foreign_key' => $ref->id];
         } elseif (is_array($ref) && !(isset($ref['model']) && isset($ref['foreign_key']))) {
             $name = key($ref);
             list(, $alias) = pluginSplit($name);
 
-            $entityClass = $this->entityClass();
+            $bindTable = TableRegistry::get($name);
+            $entityClass = $bindTable->entityClass();
+
             if ($entityClass) {
                 $entity = new $entityClass();
             }
 
             if (empty($entity)) {
-				if($error) {
-					throw new Exception\Exception(__d('cake_dev', "Entity class '{0}' not found in AclNode::node() when trying to bind {1} object", [$type, $this->alias()]));
-				} else {
-					return null;
-				}
-			}
+                throw new Exception\Exception(__d('cake_dev', "Entity class {0} not found in AclNode::node() when trying to bind {1} object", [$type, $this->alias()]));
+            }
 
             $tmpRef = null;
             if (method_exists($entity, 'bindNode')) {
@@ -169,12 +168,8 @@ class AclNodesTable extends Table
             $query = $this->find('all', $queryData);
 
             if ($query->count() == 0) {
-				if($error) {
-					throw new Exception\Exception(__d('cake_dev', "AclNode::node() - Couldn't find {0} node identified by \"{1}\"", [$type, print_r($ref, true)]));
-				} else {
-					return null;
-				}
-			}
+                throw new Exception\Exception(__d('cake_dev', "AclNode::node() - Couldn't find {0} node identified by \"{1}\"", [$type, print_r($ref, true)]));
+            }
         }
         return $query;
     }

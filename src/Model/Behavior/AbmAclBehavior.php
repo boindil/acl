@@ -16,11 +16,11 @@ namespace Acl\Model\Behavior;
 use Cake\Core\App;
 use Cake\Core\Exception;
 use Cake\Event\Event;
-use Cake\ORM\Behavior;
 use Cake\ORM\Entity;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
 use Cake\Utility\Inflector;
+use Acl\Model\Behavior\AclBehavior;
 
 /**
  * ACL behavior
@@ -29,7 +29,7 @@ use Cake\Utility\Inflector;
  *
  * @link http://book.cakephp.org/2.0/en/core-libraries/behaviors/acl.html
  */
-class AclBehavior extends Behavior
+class AbmAclBehavior extends AclBehavior
 {
 
     /**
@@ -129,18 +129,42 @@ class AclBehavior extends Behavior
         foreach ($types as $type) {
             $parent = $entity->parentNode();
             if (!empty($parent)) {
-                $parent = $this->node($parent, $type)->first();
-            }
-            $data = [
-                'parent_id' => isset($parent->id) ? $parent->id : null,
-                'model' => $model->alias(),
-                'foreign_key' => $entity->id,
-            ];
+				// Neu: Zeile 133-143 + else-Zweig
+				// $parent -> array oder object?
+				$current = current($parent);
+				if(!isset($current['id'])) {
+					$parenttmp = [];
+					$key = key($parent);
 
-            if (!$entity->isNew()) {
-                $node = $this->node($entity, $type)->first();
-                $data['id'] = isset($node->id) ? $node->id : null;
+					foreach($current as $role) {
+						// Übergabe als array?!
+						$parenttmp = array_merge($parenttmp, $this->node(array($key => $role), $type)->first());
+					}
+					$parent = array_map("unserialize", array_unique(array_map("serialize", $parenttmp)));
+				} else {
+					$parent = $this->node($parent, $type)->first();
+				}
             }
+			// Neu: for-Schleife
+			for($i = 0; $i < count($parent); $i++) {
+				// Neu: $i in parent_id
+				$data = [
+					'parent_id' => isset($parent[$i]->id) ? $parent[$i]->id : null,
+					'model' => $model->alias(),
+					'foreign_key' => $entity->id,
+				];
+				if (!$entity->isNew()) {
+					// Neu: all
+					$node = $this->node($entity, $type)->all();
+					// Neu: foreach
+					// Struktur (object)
+					foreach($node as $val) {
+						if(isset($val->id) && isset($val->parent_id) && $val->parent_id === $data['parent_id'] && isset($val->model) && $val->model === $data['model']) {
+							$data['id'] = $val->id;
+						}
+					}
+				}
+			}
             $newData = $model->{$type}->newEntity($data);
             $saved = $model->{$type}->target()->save($newData);
         }
@@ -161,8 +185,16 @@ class AclBehavior extends Behavior
         }
         foreach ($types as $type) {
             $node = $this->node($entity, $type)->toArray();
+			// Aus altem System übernommen
+			// $node = Hash::extract($this->node($model, null, $type), "{n}.{$type}[model=" . $model->name . "].id");
+			// Altes System, original
+			// $node = Hash::extract($this->node($model, null, $type), "0.{$type}.id");
             if (!empty($node)) {
-                $event->subject()->{$type}->delete($node[0]);
+				// Neu: foreach
+				foreach($node as $role) {
+					$event->subject()->{$type}->delete($role);
+					// $event->subject()->{$type}->delete($node[0]);
+				}
             }
         }
     }
