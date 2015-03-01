@@ -12,63 +12,65 @@
  */
 namespace Acl;
 
+use Acl\Controller\Component\AclComponent;
 use Cake\Console\ConsoleIo;
 use Cake\Console\Shell;
-use Acl\Controller\Component\AclComponent;
 use Cake\Controller\ComponentRegistry;
 use Cake\Controller\Controller;
-use Cake\Network\Request;
-use Cake\Core\Configure;
 use Cake\Core\App;
-use Cake\Utility\Inflector;
+use Cake\Core\Configure;
+use Cake\Core\Plugin;
 use Cake\Filesystem\Folder;
+use Cake\Network\Request;
+use Cake\Utility\Inflector;
 
 /**
- * Shell for ACO extras
+ * Provides features for additional ACL operations.
+ * Can be used in either a CLI or Web context.
  */
 class AclExtras
 {
 
-/**
- * Contains instance of AclComponent
- *
- * @var AclComponent
- */
+    /**
+     * Contains instance of AclComponent
+     *
+     * @var \Acl\Controller\Component\AclComponent
+     */
     public $Acl;
 
-/**
- * Contains arguments parsed from the command line.
- *
- * @var array
- */
+    /**
+     * Contains arguments parsed from the command line.
+     *
+     * @var array
+     */
     public $args;
 
-/**
- * Contains database source to use
- *
- * @var string
- */
+    /**
+     * Contains database source to use
+     *
+     * @var string
+     */
     public $dataSource = 'default';
 
-/**
- * Root node name.
- *
- * @var string
- */
+    /**
+     * Root node name.
+     *
+     * @var string
+     */
     public $rootNode = 'controllers';
 
-/**
- * Internal Clean Actions switch
- *
- * @var bool
- */
+    /**
+     * Internal Clean Actions switch
+     *
+     * @var bool
+     */
     protected $_clean = false;
 
-/**
- * Start up And load Acl Component / Aco model
- *
- * @return void
- */
+    /**
+     * Start up And load Acl Component / Aco model
+     *
+     * @return void
+     */
     public function startup($controller = null)
     {
         if (!$controller) {
@@ -80,6 +82,14 @@ class AclExtras
         $this->controller = $controller;
     }
 
+    /**
+     * Output a message.
+     *
+     * Will either use shell->out, or controller->Flash->success()
+     *
+     * @param string $msg The message to output.
+     * @return void
+     */
     public function out($msg)
     {
         if (!empty($this->controller->Flash)) {
@@ -89,6 +99,14 @@ class AclExtras
         }
     }
 
+    /**
+     * Output an error message.
+     *
+     * Will either use shell->err, or controller->Flash->error()
+     *
+     * @param string $msg The message to output.
+     * @return void
+     */
     public function err($msg)
     {
         if (!empty($this->controller->Flash)) {
@@ -104,10 +122,10 @@ class AclExtras
      * @param array $params An array of parameters
      * @return void
      */
-    public function aco_sync($params = [])
+    public function acoSync($params = [])
     {
         $this->_clean = true;
-        $this->aco_update($params);
+        $this->acoUpdate($params);
     }
 
     /**
@@ -116,7 +134,7 @@ class AclExtras
      * @param array $params An array of parameters
      * @return void
      */
-    public function aco_update($params = [])
+    public function acoUpdate($params = [])
     {
         $root = $this->_checkNode($this->rootNode, $this->rootNode, null);
         if (empty($params['plugin'])) {
@@ -125,16 +143,16 @@ class AclExtras
             $plugins = $this->_getPluginList();
         } else {
             $plugin = $params['plugin'];
-            if (!in_array($plugin, App::objects('plugin')) || !CakePlugin::loaded($plugin)) {
+            if (!Plugin::loaded($plugin)) {
                 $this->err(__d('cake_acl', "<error>Plugin {0} not found or not activated.</error>", [$plugin]));
                 return false;
             }
-            $plugins = array($params['plugin']);
+            $plugins = [$params['plugin']];
         }
         foreach ($plugins as $plugin) {
             $controllers = $this->getControllerList($plugin);
             $path = $this->rootNode . '/' . $plugin;
-            $pluginRoot = $this->_checkNode($path, $plugin, $root->id);
+            $pluginRoot = $this->_checkNode($path, preg_replace('/\//', '\\', Inflector::camelize($plugin)), $root->id);
             $this->_updateControllers($pluginRoot, $controllers, $plugin);
         }
         $this->out(__d('cake_acl', '<success>Aco Update Complete</success>'));
@@ -158,7 +176,7 @@ class AclExtras
         }
         $appIndex = array_search($plugin . 'AppController', $controllers);
         // look at each controller
-        $controllersNames=array();
+        $controllersNames = [];
         foreach ($controllers as $controller) {
             $tmp = explode('/', $controller);
             $controllerName = str_replace('Controller.php', '', array_pop($tmp));
@@ -175,16 +193,17 @@ class AclExtras
             }
             $controllerFlip = array_flip($controllers);
             $this->Aco->id = $root->id;
-            $controllerNodes = $this->Aco->find()->where(['parent_id'=>$root->id]);
+            $controllerNodes = $this->Aco->find()->where(['parent_id' => $root->id]);
             foreach ($controllerNodes as $ctrlNode) {
                 $alias = $ctrlNode->alias;
                 $name = $alias . 'Controller';
                 if (!isset($controllerFlip[$name]) && !isset($controllerFlip[$alias])) {
                     $entity = $this->Aco->get($ctrlNode->id);
                     if ($this->Aco->delete($entity)) {
-                        $this->out(__d('cake_acl',
+                        $this->out(__d(
+                            'cake_acl',
                             'Deleted <warning>{0}</warning> and all children',
-                            $this->rootNode . '/' .$plugin.'/'. $ctrlNode->alias
+                            $this->rootNode . '/' . $plugin . '/' . $ctrlNode->alias
                         ));
                     }
                 }
@@ -206,21 +225,21 @@ class AclExtras
             $path = App::path('Controller');
             $dir = new Folder($path[0]);
             $controllers = $dir->findRecursive('.*Controller\.php');
-            unset($controllers[0]);
         } else {
             $path = App::path('Controller', $plugin);
             $dir = new Folder($path[0]);
             $controllers = $dir->findRecursive('.*Controller\.php');
         }
+
         return $controllers;
     }
 
     /**
      * Check a node for existance, create it if it doesn't exist.
      *
-     * @param string $path
-     * @param string $alias
-     * @param int $parentId
+     * @param string $path The path to check
+     * @param string $alias The alias to create
+     * @param int $parentId The parent id to use when creating.
      * @return array Aco Node array
      */
     protected function _checkNode($path, $alias, $parentId = null)
@@ -250,7 +269,7 @@ class AclExtras
      */
     protected function _getCallbacks($className, $pluginPath = false)
     {
-        $callbacks = array();
+        $callbacks = [];
         $namespace = $this->_getNamespace($className, $pluginPath);
         $reflection = new \ReflectionClass($namespace);
         if ($reflection->isAbstract()) {
@@ -283,9 +302,10 @@ class AclExtras
     /**
      * Check and Add/delete controller Methods
      *
-     * @param string $controller
+     * @param string $className The classname to check
+     * @param string $controllerName The controller name
      * @param array $node
-     * @param string $plugin Name of plugin
+     * @param string $pluginPath
      * @return void
      */
     protected function _checkMethods($className, $controllerName, $node, $pluginPath = false)
@@ -301,16 +321,16 @@ class AclExtras
         }
         $methods = array_diff($actions, $baseMethods);
         $methods = array_diff($methods, $excludes);
-        foreach ($methods as $key=>$action) {
+        foreach ($methods as $key => $action) {
             if (strpos($action, '_', 0) === 0) {
                 continue;
             }
-            $path = $this->rootNode . '/' . $pluginPath . $controllerName . '/' . $prefix.$action;
-            $this->_checkNode($path, $prefix.$action, $node->id);
-            $methods[$key]=$prefix.$action;
+            $path = $this->rootNode . '/' . $pluginPath . $controllerName . '/' . $prefix . $action;
+            $this->_checkNode($path, $prefix . $action, $node->id);
+            $methods[$key] = $prefix . $action;
         }
         if ($this->_clean) {
-            $actionNodes = $this->Aco->find('children', ['for'=>$node->id]);
+            $actionNodes = $this->Aco->find('children', ['for' => $node->id]);
             $methodFlip = array_flip($methods);
             foreach ($actionNodes as $action) {
                 if (!isset($methodFlip[$action->alias])) {
@@ -328,7 +348,6 @@ class AclExtras
     /**
      * Verify a Acl Tree
      *
-     * @param string $type The type of Acl Node to verify
      * @return void
      */
     public function verify()
@@ -346,7 +365,6 @@ class AclExtras
     /**
      * Recover an Acl Tree
      *
-     * @param string $type The Type of Acl Node to recover
      * @return void
      */
     public function recover()
@@ -369,7 +387,8 @@ class AclExtras
         $namespace = preg_replace('/\//', '\\', $namespace);
         $namespace = preg_replace('/\.php/', '', $namespace);
         if (!$pluginPath) {
-            $namespace = '\App\Controller\\' . $namespace;
+            $appNamespace = Configure::read('App.namespace');
+            $namespace = '\\' . $appNamespace . '\\Controller\\' . $namespace;
         } else {
             $pluginPath = preg_replace('/\//', '\\', $pluginPath);
             $namespace = '\\' . $pluginPath . 'Controller\\' . $namespace;
@@ -389,9 +408,9 @@ class AclExtras
         if (empty($namespace)) {
             return null;
         }
-        $path_array = explode('\\', $namespace);
-        if (count($path_array) >= 5) {
-            return Inflector::dasherize($path_array[3]) . '_';
+        $pathArray = explode('\\', $namespace);
+        if (count($pathArray) >= 5 && $pathArray[3] !== 'Controller') {
+            return Inflector::dasherize($pathArray[3]) . '_';
         }
         return null;
     }
@@ -403,10 +422,6 @@ class AclExtras
      */
     protected function _getPluginList()
     {
-        $path = App::path('Plugin');
-        $dir = new Folder($path[0]);
-        $plugins = $dir->read();
-        return $plugins[0];
+        return Plugin::loaded();
     }
-
 }

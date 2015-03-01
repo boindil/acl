@@ -60,15 +60,15 @@ abstract class BaseAuthorize extends ParentAuthorize
      */
     public function action(Request $request, $path = '/:plugin/:prefix/:controller/:action')
     {
-        $plugin = empty($request['plugin']) ? null : Inflector::camelize($request['plugin']) . '/';
-		$prefix = empty($request['prefix']) ? null : $request['prefix'] . '/';
+        $plugin = empty($request['plugin']) ? null : preg_replace('/\//', '\\', Inflector::camelize($request['plugin'])) . '/';
+        $prefix = empty($request['prefix']) ? null : $request['prefix'] . '/';
         $path = str_replace(
             [':controller', ':action', ':plugin/', ':prefix/'],
             [Inflector::camelize($request['controller']), $request['action'], $plugin, $prefix],
             $this->_config['actionPath'] . $path
         );
         $path = str_replace('//', '/', $path);
-		
+
         return trim($path, '/');
     }
 
@@ -91,7 +91,7 @@ abstract class BaseAuthorize extends ParentAuthorize
      * Create mappings for custom CRUD operations:
      *
      * {{{
-     * $this->Auth->mapActions(['range' => 'search']);
+     * $this->Auth->mapActions([range' => 'search']);
      * }}}
      *
      * You can use the custom CRUD operations to create additional generic
