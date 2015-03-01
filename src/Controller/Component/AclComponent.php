@@ -70,7 +70,7 @@ class AclComponent extends Component
         if (!class_exists($className)) {
             $className = App::className('Acl.' . $name, 'Adapter');
             if (!$className) {
-                throw new Exception(sprintf('Could not find {0}.', [$name]));
+                throw new Exception(__d('cake_dev', 'Could not find {0}.', [$name]));
             }
         }
         $this->adapter($className);
