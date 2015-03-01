@@ -62,7 +62,7 @@ class ArosAcoTwosFixture extends TestFixture
         ['aro_id' => '8', 'aco_id' => '2', '_create' => '-1', '_read' => '-1', '_update' => '-1', '_delete' => '-1'],
         ['aro_id' => '9', 'aco_id' => '4', '_create' => '1', '_read' => '1', '_update' => '1', '_delete' => '-1'],
         ['aro_id' => '9', 'aco_id' => '9', '_create' => '0', '_read' => '0', '_update' => '1', '_delete' => '1'],
-        ['aro_id' => '10', 'aco_id' => '9', '_create' => '1', '_read' => '1', '_update' => '1', '_delete' => '1']
+        ['aro_id' => '10', 'aco_id' => '9', '_create' => '1', '_read' => '1', '_update' => '1', '_delete' => '1'],
         ['aro_id' => '10', 'aco_id' => '10', '_create' => '-1', '_read' => '-1', '_update' => '-1', '_delete' => '-1'],
     ];
 }

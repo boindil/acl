@@ -114,9 +114,9 @@ class AclComponent extends Component
      * @return bool Success
      */
     public function check($aro, $aco, $action = "*")
-	{
-		return $this->_Instance->check($aro, $aco, $action);
-	}
+    {
+        return $this->_Instance->check($aro, $aco, $action);
+    }
 
     /**
      * Pass-thru function for ACL allow instance. Allow methods
