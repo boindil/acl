@@ -1,13 +1,14 @@
 <?php
 	namespace Acl\Adapter;
-	
-	use Acl\Adapter\DbAcl;
+
+	use Acl\AclInterface;
+	use Acl\Adapter\CachedDbAcl;
 	use Cake\Core\App;
 	use Cake\Controller\Component;
 	use Cake\Network\Request;
 	use Cake\ORM\TableRegistry;
 	
-	class AbmDbAcl extends CachedDbAcl {
+	class AbmDbAcl extends CachedDbAcl implements AclInterface {
 		private $request;
 		
 		public function __construct() {
