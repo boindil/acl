@@ -15,6 +15,7 @@ namespace Acl\Model\Table;
 
 use Cake\Core\Configure;
 use Cake\Core\Exception;
+use Cake\Datasource\ConnectionManager;
 use Cake\ORM\Entity;
 use Cake\ORM\Table;
 use Cake\ORM\TableRegistry;
@@ -105,7 +106,8 @@ class AclNodesTable extends Table
                 return false;
             }
         } elseif (is_object($ref) && $ref instanceof Entity) {
-            $ref = ['model' => $ref->source(), 'foreign_key' => $ref->id];
+            list(, $alias) = pluginSplit($ref->source());
+            $ref = ['model' => $alias, 'foreign_key' => $ref->id];
         } elseif (is_array($ref) && !(isset($ref['model']) && isset($ref['foreign_key']))) {
             $name = key($ref);
             list(, $alias) = pluginSplit($name);
@@ -113,8 +115,9 @@ class AclNodesTable extends Table
             if (TableRegistry::exists($name)) {
                 $bindTable = TableRegistry::get($name);
             } else {
+                $connection = Configure::read('Acl.database');
                 $bindTable = TableRegistry::get($name, [
-                    'connection' => Configure::read('Acl.database')
+                    'connection' => ConnectionManager::get($connection)
                 ]);
             }
             $entityClass = $bindTable->entityClass();

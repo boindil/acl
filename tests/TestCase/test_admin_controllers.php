@@ -1,27 +1,7 @@
 <?php
-namespace Acl\Controller;
+namespace Acl\Controller\Admin;
 
 use Cake\Controller\Controller;
-
-class CommentsController extends Controller
-{
-
-    public function add()
-    {
-    }
-
-    public function index()
-    {
-    }
-
-    public function delete()
-    {
-    }
-
-    protected function _secret_method()
-    {
-    }
-}
 
 class PostsController extends Controller
 {

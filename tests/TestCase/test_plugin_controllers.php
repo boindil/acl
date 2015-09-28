@@ -1,10 +1,11 @@
 <?php
-namespace Nested\TestPluginTwo\Controller;
+namespace TestPlugin\Controller;
 
 use Cake\Controller\Controller;
 
-class PluginTwoController extends Controller
+class PluginController extends Controller
 {
+
     public function index()
     {
     }

@@ -70,7 +70,11 @@ class AclShell extends Shell
         }
 
         $class = Configure::read('Acl.classname');
-        $className = App::classname('Acl.' . $class, 'Adapter');
+        if (strpos($class, '\\') === false && strpos($class, '.') === false) {
+            $className = App::classname('Acl.' . $class, 'Adapter');
+        } else {
+            $className = App::classname($class, 'Adapter');
+        }
         if ($class !== 'DbAcl' &&
             !is_subclass_of($className, 'Acl\Adapter\DbAcl')
         ) {
@@ -164,6 +168,7 @@ class AclShell extends Shell
         $identifier = $this->parseIdentifier($this->args[1]);
         $nodeId = $this->_getNodeId($class, $identifier);
         $entity = $this->Acl->{$class}->newEntity(['id' => $nodeId]);
+        $entity->isNew(false);
 
         if (!$this->Acl->{$class}->delete($entity)) {
             $this->error(__d('cake_acl', 'Node Not Deleted') . __d('cake_acl', 'There was an error deleting the {0}. Check that the node exists.', [$class]) . "\n");
@@ -183,10 +188,8 @@ class AclShell extends Shell
         $parent = $this->parseIdentifier($this->args[2]);
 
         $data = [
-            $class => [
-                'id' => $this->_getNodeId($class, $target),
-                'parent_id' => $this->_getNodeId($class, $parent)
-            ]
+            'id' => $this->_getNodeId($class, $target),
+            'parent_id' => $this->_getNodeId($class, $parent)
         ];
         $entity = $this->Acl->{$class}->newEntity($data);
         if (!$this->Acl->{$class}->save($entity)) {
