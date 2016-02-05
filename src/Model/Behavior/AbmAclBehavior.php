@@ -49,7 +49,7 @@ class AbmAclBehavior extends AclBehavior
         foreach ($types as $type) {
             $parent = $entity->parentNode();
             if (!empty($parent)) {
-				// Neu: Zeile 133-143 + else-Zweig
+				// Neu: Zeile 133-143 (alte Datei) // 54 - 71 + else-Zweig
 				// $parent -> array oder object?
 				$current = current($parent);
 				if(!isset($current['id'])) {
@@ -58,7 +58,15 @@ class AbmAclBehavior extends AclBehavior
 
 					foreach($current as $role) {
 						// Übergabe als array?!
-						$parenttmp = array_merge($parenttmp, $this->node(array($key => $role), $type)->first());
+						$parenttmp = array_merge(
+							$parenttmp, 
+							$this->node(
+								[
+									$key => $role
+								], 
+								$type
+							)->first()
+						);
 					}
 					$parent = array_map("unserialize", array_unique(array_map("serialize", $parenttmp)));
 				} else {
