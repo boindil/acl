@@ -36,7 +36,6 @@ class AclNodesTable extends Table
     {
         return Configure::read('Acl.database');
     }
-
     /**
      * Retrieves the Aro/Aco node for this model
      *
