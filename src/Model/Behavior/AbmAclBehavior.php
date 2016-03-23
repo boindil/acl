@@ -49,52 +49,54 @@ class AbmAclBehavior extends AclBehavior
         foreach ($types as $type) {
             $parent = $entity->parentNode();
             if (!empty($parent)) {
-				// Neu: Zeile 133-143 (alte Datei) // 54 - 71 + else-Zweig
-				// $parent -> array oder object?
 				$current = current($parent);
+				
 				if(!isset($current['id'])) {
 					$parenttmp = [];
 					$key = key($parent);
 
 					foreach($current as $role) {
-						// Übergabe als array?!
-						$parenttmp = array_merge(
-							$parenttmp, 
-							$this->node(
-								[
-									$key => $role
-								], 
+						$node = [
+							$type => $this->node(
+								[$key => $role],
 								$type
-							)->first()
-						);
+							)->first()->toArray()
+						];
+						
+						$parenttmp[] = $node;
+						
+						
 					}
 					$parent = array_map("unserialize", array_unique(array_map("serialize", $parenttmp)));
 				} else {
-					$parent = $this->node($parent, $type)->first();
+					$parent = [
+						$type => $this->node(
+							$parent,
+							$type
+						)->first()->toArray()
+					];
 				}
             }
-			// Neu: for-Schleife
+			
 			for($i = 0; $i < count($parent); $i++) {
-				// Neu: $i in parent_id
 				$data = [
-					'parent_id' => isset($parent[$i]->id) ? $parent[$i]->id : null,
+					'parent_id' => isset($parent[$i][$type]['id']) ? $parent[$i][$type]['id'] : null,
 					'model' => $model->alias(),
 					'foreign_key' => $entity->id,
 				];
 				if (!$entity->isNew()) {
-					// Neu: all
 					$node = $this->node($entity, $type)->all();
-					// Neu: foreach
-					// Struktur (object)
+					
 					foreach($node as $val) {
 						if(isset($val->id) && isset($val->parent_id) && $val->parent_id === $data['parent_id'] && isset($val->model) && $val->model === $data['model']) {
 							$data['id'] = $val->id;
 						}
 					}
 				}
+				
+           	 	$newData = $model->{$type}->newEntity($data);
+           	 	$saved = $model->{$type}->target()->save($newData);
 			}
-            $newData = $model->{$type}->newEntity($data);
-            $saved = $model->{$type}->target()->save($newData);
         }
     }
 
