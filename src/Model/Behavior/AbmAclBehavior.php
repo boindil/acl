@@ -109,21 +109,20 @@ class AbmAclBehavior extends AclBehavior
      */
     public function afterDelete(Event $event, Entity $entity)
     {
+		$model = $event->subject();
+		
         $types = $this->_typeMaps[$this->config('type')];
         if (!is_array($types)) {
             $types = [$types];
         }
         foreach ($types as $type) {
-            $node = $this->node($entity, $type)->toArray();
-			// Aus altem System übernommen
-			// $node = Hash::extract($this->node($model, null, $type), "{n}.{$type}[model=" . $model->name . "].id");
-			// Altes System, original
-			// $node = Hash::extract($this->node($model, null, $type), "0.{$type}.id");
+            $node = $this->node($entity, $type)->all()->toArray();
+			
             if (!empty($node)) {
-				// Neu: foreach
 				foreach($node as $role) {
-					$event->subject()->{$type}->delete($role);
-					// $event->subject()->{$type}->delete($node[0]);
+					if($role->model	== $model->alias()) {
+						$event->subject()->{$type}->delete($role);
+					}
 				}
             }
         }
