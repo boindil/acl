@@ -16,5 +16,9 @@ if (!Configure::read('Acl.classname')) {
     Configure::write('Acl.classname', 'AbmDbAcl');
 }
 if (!Configure::read('Acl.database')) {
-    Configure::write('Acl.database', 'default');
+	if(Configure::read('debug')) {
+		Configure::write('Acl.database', 'test');
+	} else {
+		Configure::write('Acl.database', 'default');
+	}
 }
