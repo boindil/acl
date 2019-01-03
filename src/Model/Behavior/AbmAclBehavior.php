@@ -49,52 +49,76 @@ class AbmAclBehavior extends AclBehavior
         foreach ($types as $type) {
             $parent = $entity->parentNode();
             if (!empty($parent)) {
-				// Neu: Zeile 133-143 (alte Datei) // 54 - 71 + else-Zweig
-				// $parent -> array oder object?
 				$current = current($parent);
+				
 				if(!isset($current['id'])) {
 					$parenttmp = [];
 					$key = key($parent);
 
 					foreach($current as $role) {
-						// Übergabe als array?!
-						$parenttmp = array_merge(
-							$parenttmp, 
-							$this->node(
-								[
-									$key => $role
-								], 
+						$node = [
+							$type => $this->node(
+								[$key => $role],
 								$type
-							)->first()
-						);
+							)->first()->toArray()
+						];
+						
+						$parenttmp[] = $node;
 					}
 					$parent = array_map("unserialize", array_unique(array_map("serialize", $parenttmp)));
 				} else {
-					$parent = $this->node($parent, $type)->first();
+					$parent = [
+						$type => $this->node(
+							$parent,
+							$type
+						)->first()->toArray()
+					];
 				}
             }
-			// Neu: for-Schleife
+			
+			// Get nodes here ffs (is the same anyways)
+			$nodes = $this->node($entity, $type)->all();
+			
 			for($i = 0; $i < count($parent); $i++) {
-				// Neu: $i in parent_id
 				$data = [
-					'parent_id' => isset($parent[$i]->id) ? $parent[$i]->id : null,
+					'parent_id' => isset($parent[$i][$type]['id']) ? $parent[$i][$type]['id'] : null,
 					'model' => $model->alias(),
 					'foreign_key' => $entity->id,
 				];
+				$parentIds = [];
+				
 				if (!$entity->isNew()) {
-					// Neu: all
-					$node = $this->node($entity, $type)->all();
-					// Neu: foreach
-					// Struktur (object)
-					foreach($node as $val) {
-						if(isset($val->id) && isset($val->parent_id) && $val->parent_id === $data['parent_id'] && isset($val->model) && $val->model === $data['model']) {
-							$data['id'] = $val->id;
+					$checkForRemovals = true;
+					$parentIds[] = $data['parent_id'];
+					
+					foreach($nodes as $node) {
+						if(isset($node->id) && isset($node->parent_id) && $node->parent_id === $data['parent_id'] && isset($node->model) && $node->model === $data['model']) {
+							$data['id'] = $node->id;
+						}
+					}
+				} else {
+					$checkForRemovals = false;
+				}
+				
+           	 	$newData = $model->{$type}->newEntity($data);
+           	 	$saved = $model->{$type}->target()->save($newData);
+			}
+			
+			if($checkForRemovals) {
+				// Get nodes object again since it might have changed!
+				$nodes = $this->node($entity, $type)->all();
+				
+				// Count of nodes in DB should be equal to the parent count
+				// If not, some roles have to be removed manually
+				if($nodes->count() != count($parent)) {
+					foreach($nodes as $node) {
+						// If parentId is not null and was not saved in the last step and th modelAlias is matching, remove it!
+						if(isset($node->parent_id) && !in_array($node->parent_id, $parentIds) && isset($node->model) && $node->model === $model->alias()) {
+							$event->subject()->{$type}->delete($node);
 						}
 					}
 				}
 			}
-            $newData = $model->{$type}->newEntity($data);
-            $saved = $model->{$type}->target()->save($newData);
         }
     }
 
@@ -107,21 +131,20 @@ class AbmAclBehavior extends AclBehavior
      */
     public function afterDelete(Event $event, Entity $entity)
     {
+		$model = $event->subject();
+		
         $types = $this->_typeMaps[$this->config('type')];
         if (!is_array($types)) {
             $types = [$types];
         }
         foreach ($types as $type) {
-            $node = $this->node($entity, $type)->toArray();
-			// Aus altem System übernommen
-			// $node = Hash::extract($this->node($model, null, $type), "{n}.{$type}[model=" . $model->name . "].id");
-			// Altes System, original
-			// $node = Hash::extract($this->node($model, null, $type), "0.{$type}.id");
+            $node = $this->node($entity, $type)->all()->toArray();
+			
             if (!empty($node)) {
-				// Neu: foreach
 				foreach($node as $role) {
-					$event->subject()->{$type}->delete($role);
-					// $event->subject()->{$type}->delete($node[0]);
+					if($role->model	== $model->alias()) {
+						$event->subject()->{$type}->delete($role);
+					}
 				}
             }
         }
